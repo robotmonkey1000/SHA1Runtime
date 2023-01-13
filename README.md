@@ -1,3 +1,4 @@
+
 # SHA1 Runtime
 
 This is a simple Fabric mod that enables you to update the hash for your server resource pack while the server is still running.
@@ -5,8 +6,10 @@ This is a simple Fabric mod that enables you to update the hash for your server 
 If you are anything like me, I like to constantly add new custom models to my resource pack just to add a little extra customization to Vanilla Minecraft. I do not like however having to ask people to stop what they are doing so I can restart the server to get it to read the new SHA1 Hash.
 
 Since a standard server only reads the server.properties file on startup you must restart every time you make a change to your pack and add a new hash. That is why this was created, so I can tweak and add all I want and people can freely join in and out getting the new resource pack *automagically*.
+## Download
+![Modrinth Downloads](https://img.shields.io/modrinth/dt/YoRtMPzM?color=modrinth&logo=modrinth) [Download on Modrinth](https://modrinth.com/mod/sha1runtime)
 
-## Setup
+## Mod Setup
 
 Install on a Fabric __server__ only.
 
