@@ -9,6 +9,7 @@ Since a standard server only reads the server.properties file on startup you mus
 ## Download
 ![Modrinth Downloads](https://img.shields.io/modrinth/dt/YoRtMPzM?color=modrinth&logo=modrinth) [Download on Modrinth](https://modrinth.com/mod/sha1runtime)
 
+[Download on Curseforge](https://www.curseforge.com/minecraft/mc-mods/sha1runtime)
 ## Mod Setup
 
 Install on a Fabric __server__ only.
