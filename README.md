@@ -22,7 +22,3 @@ Install on a Fabric __server__ only.
 
 Once installed you can edit the `config/ResourcePackHash.txt` file to update your hash.
 You can use `/checkhash` to get some info on which hash is being supplied.
-
-## Todo:
-
-Setup command to update the hash from in game.

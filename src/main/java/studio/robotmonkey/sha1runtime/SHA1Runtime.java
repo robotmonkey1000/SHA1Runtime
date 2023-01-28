@@ -1,5 +1,6 @@
 package studio.robotmonkey.sha1runtime;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.text.Text;
@@ -12,7 +13,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
-import static net.minecraft.server.command.CommandManager.*;
+import static com.mojang.brigadier.arguments.StringArgumentType.getString;
+import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.server.command.CommandManager.literal;
 
 public class SHA1Runtime implements ModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger("sha1runtime");
@@ -67,6 +70,65 @@ public class SHA1Runtime implements ModInitializer {
 
 					return 1;
 				})));
+
+
+
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+			{
+				if(environment.dedicated) {
+					dispatcher.register(literal("updatehash")
+						.requires(source -> source.hasPermissionLevel(4))
+						.then(argument("hash", StringArgumentType.greedyString())
+							.executes(context ->
+							{
+								if(context.getSource().getServer().isDedicated()) {
+									String hash = getString(context, "hash");
+
+									File config = GetOrCreateConfig();
+									try {
+										FileWriter writer = new FileWriter(config);
+										writer.write(hash);
+										writer.close();
+										context.getSource().sendMessage(Text.literal("Updated config to: " + hash));
+										SHA1Runtime.LOGGER.info("Updated config with new hash: " + hash);
+									} catch (IOException e) {
+										context.getSource().sendMessage(Text.literal("Failed to update hash!"));
+										SHA1Runtime.LOGGER.error("Failed to write new hash!");
+									}
+
+								}
+								return 1;
+							})
+						));
+				}
+
+			}
+		);
+
 	}
+
+	public static File GetOrCreateConfig() {
+		File hashFile = new File("config/ResourcePackHash.txt");
+		if(!hashFile.exists()) {
+			SHA1Runtime.LOGGER.warn("Missing Hash File! Generating Now...");
+			try {
+				boolean created = hashFile.createNewFile();
+				if(created) {
+					FileWriter writer = new FileWriter(hashFile);
+					writer.write("");
+					writer.close();
+					SHA1Runtime.LOGGER.info("Config file generated. Update with your new hash when needed.");
+				} else {
+					SHA1Runtime.LOGGER.error("Could not create config file!");
+				}
+
+			} catch(IOException ioException)
+			{
+				ioException.printStackTrace();
+			}
+		}
+		return hashFile;
+	}
+
 
 }
