@@ -1,7 +1,7 @@
 package studio.robotmonkey.sha1runtime.mixin;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.packet.s2c.play.ResourcePackSendS2CPacket;
+import net.minecraft.network.packet.s2c.common.ResourcePackSendS2CPacket;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
