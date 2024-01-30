@@ -16,10 +16,15 @@ Install on a Fabric __server__ only.
 
 1. Once installed make sure your server.properties has a SHA1 Hash assigned and a URL for the resource pack. The hash does not have to be accurate as the config file that is generated will be used to serve your updated hashes.
 2. Run the server and join.
-3. Whenever you update your resource pack put the new hash in the `config/ResourcePackHash.txt` file.
+3. Whenever you update your resource pack put the new hash in the `config/ResourcePackHash.txt` file or run the `/updatehash` command with the new hash.
 4. Once the new hash is added save the file and re-log in game. It should prompt you to install the new resource pack.
 
 ## Usage:
 
-Once installed you can edit the `config/ResourcePackHash.txt` file to update your hash.
+Once installed you can edit the `config/ResourcePackHash.txt` file or run the `/updatehash` command with your new hash to update your hash.
 You can use `/checkhash` to get some info on which hash is being supplied.
+
+## Commands
+`/checkhash` : Will print out info on the current supplied hash.
+
+`/updatehash HASH_EXAMPLE` : Will update the config to contain the supplied hash.
