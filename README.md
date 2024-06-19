@@ -28,3 +28,5 @@ You can use `/checkhash` to get some info on which hash is being supplied.
 `/checkhash` : Will print out info on the current supplied hash.
 
 `/updatehash HASH_EXAMPLE` : Will update the config to contain the supplied hash.
+
+`/fetchhash` : Will hash the resourcepack currently at the URL from the server.properties and save the hash to the config file.

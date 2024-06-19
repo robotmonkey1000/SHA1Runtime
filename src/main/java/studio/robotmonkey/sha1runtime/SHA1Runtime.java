@@ -3,14 +3,19 @@ package studio.robotmonkey.sha1runtime;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.text.Text;
+import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.net.URL;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
@@ -100,6 +105,62 @@ public class SHA1Runtime implements ModInitializer {
 								return 1;
 							})
 						));
+
+					dispatcher.register(literal("fetchhash").requires(source -> source.hasPermissionLevel(4)).executes(context -> {
+						if(context.getSource().getServer().isDedicated()) {
+							Thread fetchPackThread = new Thread(new Runnable() {
+								public void run()
+								{
+									try
+									{
+										MinecraftServer.ServerResourcePackProperties props = context.getSource().getServer().getResourcePackProperties().orElseThrow();
+										String url = props.url();
+
+										SHA1Runtime.LOGGER.info("Fetching resource pack from: " + url);
+										BufferedInputStream in = new BufferedInputStream(new URL(url).openStream());
+
+										MessageDigest digest = MessageDigest.getInstance("SHA-1");
+										DigestInputStream stream = new DigestInputStream(in, digest);
+										while(stream.read() != -1) {}
+										stream.close();
+
+										SHA1Runtime.LOGGER.info("Resource pack fetch completed. Calculating new hash!");
+										byte[] hash = digest.digest();
+										//SHA1Runtime.LOGGER.info(Arrays.toString(hash));
+										StringBuilder hexString = new StringBuilder();
+
+										for (byte b : hash) {
+											hexString.append(String.format("%02x", b));
+										}
+
+										File config = GetOrCreateConfig();
+										FileWriter writer = new FileWriter(config);
+										writer.write(hexString.toString().toUpperCase());
+										writer.close();
+										context.getSource().sendMessage(Text.literal("Updated config to: " + hexString.toString().toUpperCase()));
+										SHA1Runtime.LOGGER.info("Updated config with new hash: " + hexString.toString().toUpperCase());
+
+									} catch(NoSuchElementException e)
+									{
+										context.getSource().sendMessage(Text.literal("No resource pack properties found. Make sure hash and url are set."));
+										SHA1Runtime.LOGGER.error("No resource pack properties found. Make sure hash and url are set.");
+									}
+									catch (IOException e)
+									{
+										SHA1Runtime.LOGGER.error("IOException: " + e);
+									}
+									catch(NoSuchAlgorithmException algo)
+									{
+										SHA1Runtime.LOGGER.error("Wrong algorithm!");
+									}
+								}});
+
+							fetchPackThread.start();
+
+
+						}
+						return 1;
+					}));
 				}
 
 			}
