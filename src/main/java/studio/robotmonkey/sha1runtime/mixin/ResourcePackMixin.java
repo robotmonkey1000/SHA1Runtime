@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import studio.robotmonkey.sha1runtime.SHA1Runtime;
+import studio.robotmonkey.sha1runtime.Util.Util;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -47,6 +48,34 @@ public class ResourcePackMixin {
             }
         }
     }
+
+    @Inject(at= @At("HEAD"), method = "Lnet/minecraft/network/packet/s2c/common/ResourcePackSendS2CPacket;url()Ljava/lang/String;", cancellable = true)
+    public void getURL(CallbackInfoReturnable ci) {
+        if(Util.IsOverrideSet())
+        {
+            SHA1Runtime.LOGGER.info("URL Override is set. Gathering from config!");
+            File urlFile = Util.GetOrCreateUrlOverride();
+            try {
+                Scanner fileReader = new Scanner(urlFile);
+                if (fileReader.hasNextLine()) {
+                    String urlInFile = fileReader.nextLine();
+                    SHA1Runtime.LOGGER.info("Url Found: " + urlInFile);
+                    ci.setReturnValue(urlInFile);
+                } else {
+                    SHA1Runtime.LOGGER.warn("No URL in file: Please open config folder and add your url or run /setpackurl.");
+                }
+                fileReader.close();
+            } catch (FileNotFoundException e) {
+                SHA1Runtime.LOGGER.error("Missing Url File! Generating Now...");
+                try {
+                    urlFile.createNewFile();
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
+            }
+        }
+    }
+
 
 
 

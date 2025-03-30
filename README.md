@@ -24,7 +24,15 @@ Install on a Fabric __server__ only.
 Once installed you can edit the `config/ResourcePackHash.txt` file or run the `/updatehash` command with your new hash to update your hash.
 You can use `/checkhash` to get some info on which hash is being supplied.
 
+You can also use `/fetchhash` to automagically calculate and set the hash. For a few seconds while the hash is calculated, may cause performance issues if your pack is large.
+
+If you use a third party resource pack host, you can use `/setpackurl` to set the url of the pack without the need to restart the server.
+
 ## Commands
 `/checkhash` : Will print out info on the current supplied hash.
 
 `/updatehash HASH_EXAMPLE` : Will update the config to contain the supplied hash.
+
+`/fetchhash` : Will hash the resourcepack currently at the URL from the server.properties (Or in override file) and save the hash to the config file.
+
+`/setpackurl URL` : Will update the pack override config to contain the supplied url and override the URL found in the server.properties. This is useful for people who host their packs on third party sites, or want version info in the zip name.
