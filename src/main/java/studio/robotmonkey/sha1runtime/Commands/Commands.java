@@ -4,7 +4,9 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.datafixers.types.templates.Check;
+import net.minecraft.block.entity.VaultBlockEntity;
 import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.network.packet.s2c.common.ResourcePackSendS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
@@ -18,6 +20,8 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
@@ -34,7 +38,9 @@ public class Commands {
         {
             CheckHash.register(dispatcher);
             UpdateHash.register(dispatcher);
+            Reload.register(dispatcher);
             FetchHash.register(dispatcher);
+            FetchHashReload.register(dispatcher);
             UpdateURL.register(dispatcher);
         }
     }
@@ -116,66 +122,123 @@ public class Commands {
         }
     }
 
+    public static class Reload {
+        private static final String command = "reload";
+
+        public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+            dispatcher.register(literal(command).requires(source -> source.hasPermissionLevel(4)).executes(Commands.Reload::execute));
+        }
+
+        public static int execute(CommandContext<ServerCommandSource> context) {
+            if (context.getSource().getServer().isDedicated()) {
+                Optional<MinecraftServer.ServerResourcePackProperties> props = context.getSource().getServer().getResourcePackProperties();
+                if(props.isPresent()) {
+                    String url = props.get().url();
+                    //String hash = Util.GetHash(); //Not required as handled by he mixin
+                        if(Util.IsOverrideSet())
+                        {
+                            //URL override, use from file
+                            url = Util.GetURLFromConfig();
+                        }
+                        Text prompt = Text.of("Reloading resource pack!");
+                        for (var player : context.getSource().getServer().getPlayerManager().getPlayerList()) {
+                            player.networkHandler.sendPacket(new ResourcePackSendS2CPacket(props.get().id(), url, props.get().hash(), true, Optional.of(prompt)));
+                        }
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    public static class FetchHashReload {
+        private static final String command = "fetchhash";
+
+        public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+            dispatcher.register(literal(command).requires(source -> source.hasPermissionLevel(4)).then(literal("reload").executes(Commands.FetchHashReload::execute)));
+        }
+
+        public static int execute(CommandContext<ServerCommandSource> context) {
+            if (context.getSource().getServer().isDedicated()) {
+                FetchHash.run(context,true);
+            }
+
+            return 1;
+        }
+    }
+
     public static class FetchHash {
         private static final String command = "fetchhash";
         public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
         {
             dispatcher.register(literal(command).requires(source -> source.hasPermissionLevel(4)).executes(FetchHash::execute));
         }
+
+        public static int run(CommandContext<ServerCommandSource> context, boolean reload)
+        {
+            Thread fetchPackThread = new Thread(() -> {
+                try
+                {
+                    //TODO check to see if URL override is set and resolve it instead of the URL of the
+                    MinecraftServer.ServerResourcePackProperties props = context.getSource().getServer().getResourcePackProperties().orElseThrow();
+                    String url = props.url();
+                    if(Util.IsOverrideSet())
+                    {
+                        SHA1Runtime.LOGGER.info("URL Override Set in Config.");
+                        url = Util.GetURLFromConfig();
+                    }
+                    SHA1Runtime.LOGGER.info("Fetching resource pack from: " + url);
+                    BufferedInputStream in = new BufferedInputStream(new URL(url).openStream());
+
+                    MessageDigest digest = MessageDigest.getInstance("SHA-1");
+                    DigestInputStream stream = new DigestInputStream(in, digest);
+                    while(stream.read() != -1) {} //Required to read the entire stream from the buffer;
+                    stream.close();
+
+                    SHA1Runtime.LOGGER.info("Resource pack fetch completed. Calculating new hash!");
+                    byte[] hash = digest.digest();
+                    StringBuilder hexString = new StringBuilder();
+
+                    for (byte b : hash) {
+                        hexString.append(String.format("%02x", b));
+                    }
+
+                    File config = GetOrCreateConfig();
+                    FileWriter writer = new FileWriter(config);
+                    writer.write(hexString.toString().toUpperCase());
+                    writer.close();
+                    context.getSource().sendMessage(Text.literal("Updated config to: " + hexString.toString().toUpperCase()));
+                    SHA1Runtime.LOGGER.info("Updated config with new hash: " + hexString.toString().toUpperCase());
+
+                } catch(NoSuchElementException e)
+                {
+                    context.getSource().sendMessage(Text.literal("No resource pack properties found. Make sure hash and url are set."));
+                    SHA1Runtime.LOGGER.error("No resource pack properties found. Make sure hash and url are set.");
+                }
+                catch (IOException e)
+                {
+                    SHA1Runtime.LOGGER.error("IOException: " + e);
+                }
+                catch(NoSuchAlgorithmException algo)
+                {
+                    SHA1Runtime.LOGGER.error("Wrong algorithm!");
+                }
+
+                if(reload)
+                {
+                   Reload.execute(context);
+                }
+            });
+
+            fetchPackThread.start();
+
+            return 1;
+        }
         public static int execute(CommandContext<ServerCommandSource> context)
         {
             if(context.getSource().getServer().isDedicated())
             {
-                Thread fetchPackThread = new Thread(() -> {
-                    try
-                    {
-                        //TODO check to see if URL override is set and resolve it instead of the URL of the
-                        MinecraftServer.ServerResourcePackProperties props = context.getSource().getServer().getResourcePackProperties().orElseThrow();
-                        String url = props.url();
-                        if(Util.IsOverrideSet())
-                        {
-                            SHA1Runtime.LOGGER.info("URL Override Set in Config.");
-                            url = Util.GetURLFromConfig();
-                        }
-                        SHA1Runtime.LOGGER.info("Fetching resource pack from: " + url);
-                        BufferedInputStream in = new BufferedInputStream(new URL(url).openStream());
-
-                        MessageDigest digest = MessageDigest.getInstance("SHA-1");
-                        DigestInputStream stream = new DigestInputStream(in, digest);
-                        while(stream.read() != -1) {} //Required to read the entire stream from the buffer;
-                        stream.close();
-
-                        SHA1Runtime.LOGGER.info("Resource pack fetch completed. Calculating new hash!");
-                        byte[] hash = digest.digest();
-                        StringBuilder hexString = new StringBuilder();
-
-                        for (byte b : hash) {
-                            hexString.append(String.format("%02x", b));
-                        }
-
-                        File config = GetOrCreateConfig();
-                        FileWriter writer = new FileWriter(config);
-                        writer.write(hexString.toString().toUpperCase());
-                        writer.close();
-                        context.getSource().sendMessage(Text.literal("Updated config to: " + hexString.toString().toUpperCase()));
-                        SHA1Runtime.LOGGER.info("Updated config with new hash: " + hexString.toString().toUpperCase());
-
-                    } catch(NoSuchElementException e)
-                    {
-                        context.getSource().sendMessage(Text.literal("No resource pack properties found. Make sure hash and url are set."));
-                        SHA1Runtime.LOGGER.error("No resource pack properties found. Make sure hash and url are set.");
-                    }
-                    catch (IOException e)
-                    {
-                        SHA1Runtime.LOGGER.error("IOException: " + e);
-                    }
-                    catch(NoSuchAlgorithmException algo)
-                    {
-                        SHA1Runtime.LOGGER.error("Wrong algorithm!");
-                    }
-                });
-
-                fetchPackThread.start();
+                run(context, false);
             }
             return 1;
         }

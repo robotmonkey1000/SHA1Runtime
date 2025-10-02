@@ -32,6 +32,30 @@ public class Util {
         return hashFile;
     }
 
+    public static String GetHash() {
+        File hashFile = GetOrCreateConfig();
+        try {
+            Scanner fileReader = new Scanner(hashFile);
+            if (fileReader.hasNextLine()) {
+                String hashInFile = fileReader.nextLine();
+                SHA1Runtime.LOGGER.info("Hash Found: " + hashInFile);
+                return hashInFile;
+            } else {
+                SHA1Runtime.LOGGER.warn("No Hash in file: Please open config folder and add your hash.");
+            }
+            fileReader.close();
+        } catch (FileNotFoundException e) {
+            SHA1Runtime.LOGGER.error("Missing Hash File! Generating Now...");
+            try {
+                hashFile.createNewFile();
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
+        }
+
+        return null;
+    }
+
     public static boolean IsOverrideSet()
     {
         File urlFile = new File("config/packurl.override");

@@ -33,6 +33,10 @@ If you use a third party resource pack host, you can use `/setpackurl` to set th
 
 `/updatehash HASH_EXAMPLE` : Will update the config to contain the supplied hash.
 
+`/reload` : Forces all connected clients to load the resource pack
+
 `/fetchhash` : Will hash the resourcepack currently at the URL from the server.properties (Or in override file) and save the hash to the config file.
+
+`/fetchhash reload` : An optional parameter which will do the above, but force all clients connected to load the new pack
 
 `/setpackurl URL` : Will update the pack override config to contain the supplied url and override the URL found in the server.properties. This is useful for people who host their packs on third party sites, or want version info in the zip name.
