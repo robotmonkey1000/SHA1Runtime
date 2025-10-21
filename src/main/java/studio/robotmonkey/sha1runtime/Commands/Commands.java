@@ -123,7 +123,7 @@ public class Commands {
     }
 
     public static class Reload {
-        private static final String command = "reload";
+        private static final String command = "reload_pack";
 
         public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
             dispatcher.register(literal(command).requires(source -> source.hasPermissionLevel(4)).executes(Commands.Reload::execute));
@@ -134,7 +134,7 @@ public class Commands {
                 Optional<MinecraftServer.ServerResourcePackProperties> props = context.getSource().getServer().getResourcePackProperties();
                 if(props.isPresent()) {
                     String url = props.get().url();
-                    //String hash = Util.GetHash(); //Not required as handled by he mixin
+                    //String hash = Util.GetHash(); //Not required as handled by the mixin
                         if(Util.IsOverrideSet())
                         {
                             //URL override, use from file
