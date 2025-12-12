@@ -6,6 +6,10 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.datafixers.types.templates.Check;
 import net.minecraft.block.entity.VaultBlockEntity;
 import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.command.DefaultPermissions;
+import net.minecraft.command.permission.PermissionChecks;
+import net.minecraft.command.permission.PermissionLevel;
+import net.minecraft.command.permission.Permissions;
 import net.minecraft.network.packet.s2c.common.ResourcePackSendS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
@@ -97,7 +101,7 @@ public class Commands {
         private static final String command = "updatehash";
         public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
             dispatcher.register(literal(command)
-                    .requires(source -> source.hasPermissionLevel(4))
+                    .requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS))
                     .then(argument("hash", StringArgumentType.greedyString())
                             .executes(UpdateHash::execute)
                     ));
@@ -126,7 +130,7 @@ public class Commands {
         private static final String command = "reload_pack";
 
         public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-            dispatcher.register(literal(command).requires(source -> source.hasPermissionLevel(4)).executes(Commands.Reload::execute));
+            dispatcher.register(literal(command).requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS)).executes(Commands.Reload::execute));
         }
 
         public static int execute(CommandContext<ServerCommandSource> context) {
@@ -155,7 +159,7 @@ public class Commands {
         private static final String command = "fetchhash";
 
         public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-            dispatcher.register(literal(command).requires(source -> source.hasPermissionLevel(4)).then(literal("reload").executes(Commands.FetchHashReload::execute)));
+            dispatcher.register(literal(command).requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS)).then(literal("reload").executes(Commands.FetchHashReload::execute)));
         }
 
         public static int execute(CommandContext<ServerCommandSource> context) {
@@ -171,7 +175,7 @@ public class Commands {
         private static final String command = "fetchhash";
         public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
         {
-            dispatcher.register(literal(command).requires(source -> source.hasPermissionLevel(4)).executes(FetchHash::execute));
+            dispatcher.register(literal(command).requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS)).executes(FetchHash::execute));
         }
 
         public static int run(CommandContext<ServerCommandSource> context, boolean reload)
@@ -247,7 +251,7 @@ public class Commands {
         private static final String command = "setpackurl";
         public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
             dispatcher.register(literal(command)
-                    .requires(source -> source.hasPermissionLevel(4))
+                    .requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS))
                     .then(argument("url", StringArgumentType.greedyString())
                             .executes(UpdateURL::execute)
                     ));
