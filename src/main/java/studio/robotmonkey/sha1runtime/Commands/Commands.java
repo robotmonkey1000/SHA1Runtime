@@ -3,18 +3,12 @@ package studio.robotmonkey.sha1runtime.Commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.datafixers.types.templates.Check;
-import net.minecraft.block.entity.VaultBlockEntity;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.command.DefaultPermissions;
-import net.minecraft.command.permission.PermissionChecks;
-import net.minecraft.command.permission.PermissionLevel;
-import net.minecraft.command.permission.Permissions;
-import net.minecraft.network.packet.s2c.common.ResourcePackSendS2CPacket;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.server.permissions.Permissions;
+import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
 import studio.robotmonkey.sha1runtime.SHA1Runtime;
 import studio.robotmonkey.sha1runtime.Util.Util;
 
@@ -24,21 +18,20 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 import static studio.robotmonkey.sha1runtime.Util.Util.GetOrCreateConfig;
 import static studio.robotmonkey.sha1runtime.Util.Util.GetOrCreateUrlOverride;
 
 public class Commands {
-    public static void RegisterAllCommands(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment env)
+    public static void RegisterAllCommands(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, net.minecraft.commands.Commands.CommandSelection env)
     {
         //Server sided commands
-        if(env.dedicated)
+        if(env.includeDedicated)
         {
             CheckHash.register(dispatcher);
             UpdateHash.register(dispatcher);
@@ -51,35 +44,35 @@ public class Commands {
 
     public static class CheckHash {
         private static final String command = "checkhash";
-        public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+        public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
             dispatcher.register(literal(command).executes(CheckHash::execute));
         }
-        public static int execute(CommandContext<ServerCommandSource> context) {
-            if(context.getSource().getServer().getResourcePackProperties().isPresent())
+        public static int execute(CommandContext<CommandSourceStack> context) {
+            if(context.getSource().getServer().getServerResourcePack().isPresent())
             {
-                context.getSource().sendMessage(Text.literal( "Hash in server.properties: " + context.getSource().getServer().getResourcePackProperties().get().hash()));
+                context.getSource().sendSystemMessage(Component.literal( "Hash in server.properties: " + context.getSource().getServer().getServerResourcePack().get().hash()));
 
                 File hashFile = new File("config/ResourcePackHash.txt");
                 try {
                     Scanner fileReader = new Scanner(hashFile);
                     if(fileReader.hasNextLine()) {
                         String hash = fileReader.nextLine();
-                        context.getSource().sendMessage(Text.literal("Hash in config file: " + hash));
+                        context.getSource().sendSystemMessage(Component.literal("Hash in config file: " + hash));
                     } else {
-                        context.getSource().sendMessage(Text.literal("No Hash in config file: Please open config folder and add your hash."));
+                        context.getSource().sendSystemMessage(Component.literal("No Hash in config file: Please open config folder and add your hash."));
                     }
                     fileReader.close();
                 } catch(FileNotFoundException e)
                 {
-                    context.getSource().sendMessage(Text.literal("Config file is missing. Generating a new one now...."));
+                    context.getSource().sendSystemMessage(Component.literal("Config file is missing. Generating a new one now...."));
                     SHA1Runtime.LOGGER.warn("Missing Hash File! Generating Now...");
                     try {
                         boolean created = hashFile.createNewFile();
                         if(created) {
                             FileWriter writer = new FileWriter(hashFile);
-                            writer.write(context.getSource().getServer().getResourcePackProperties().get().hash());
+                            writer.write(context.getSource().getServer().getServerResourcePack().get().hash());
                             writer.close();
-                            context.getSource().sendMessage(Text.literal("Config file generated. Update with your new hash when needed or use /fetchhash to automatically set it."));
+                            context.getSource().sendSystemMessage(Component.literal("Config file generated. Update with your new hash when needed or use /fetchhash to automatically set it."));
                         } else {
                             SHA1Runtime.LOGGER.error("Could not create config file!");
                         }
@@ -90,7 +83,7 @@ public class Commands {
                     }
                 }
             } else {
-                context.getSource().sendMessage(Text.literal("No Hash Present in server.properties make sure you assign one even if it is outdated."));
+                context.getSource().sendSystemMessage(Component.literal("No Hash Present in server.properties make sure you assign one even if it is outdated."));
             }
 
             return 1;
@@ -99,25 +92,25 @@ public class Commands {
 
     public static class UpdateHash {
         private static final String command = "updatehash";
-        public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+        public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
             dispatcher.register(literal(command)
-                    .requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS))
+                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_OWNER))
                     .then(argument("hash", StringArgumentType.greedyString())
                             .executes(UpdateHash::execute)
                     ));
         }
-        public static int execute(CommandContext<ServerCommandSource> context) {
-            if(context.getSource().getServer().isDedicated()) {
+        public static int execute(CommandContext<CommandSourceStack> context) {
+            if(context.getSource().getServer().isDedicatedServer()) {
                 String hash = getString(context, "hash");
                 File config = GetOrCreateConfig();
                 try {
                     FileWriter writer = new FileWriter(config);
                     writer.write(hash);
                     writer.close();
-                    context.getSource().sendMessage(Text.literal("Updated config to: " + hash));
+                    context.getSource().sendSystemMessage(Component.literal("Updated config to: " + hash));
                     SHA1Runtime.LOGGER.info("Updated config with new hash: " + hash);
                 } catch (IOException e) {
-                    context.getSource().sendMessage(Text.literal("Failed to update hash!"));
+                    context.getSource().sendSystemMessage(Component.literal("Failed to update hash!"));
                     SHA1Runtime.LOGGER.error("Failed to write new hash!");
                 }
 
@@ -129,13 +122,13 @@ public class Commands {
     public static class Reload {
         private static final String command = "reload_pack";
 
-        public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-            dispatcher.register(literal(command).requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS)).executes(Commands.Reload::execute));
+        public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+            dispatcher.register(literal(command).requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_OWNER)).executes(Commands.Reload::execute));
         }
 
-        public static int execute(CommandContext<ServerCommandSource> context) {
-            if (context.getSource().getServer().isDedicated()) {
-                Optional<MinecraftServer.ServerResourcePackProperties> props = context.getSource().getServer().getResourcePackProperties();
+        public static int execute(CommandContext<CommandSourceStack> context) {
+            if (context.getSource().getServer().isDedicatedServer()) {
+                Optional<MinecraftServer.ServerResourcePackInfo> props = context.getSource().getServer().getServerResourcePack();
                 if(props.isPresent()) {
                     String url = props.get().url();
                     //String hash = Util.GetHash(); //Not required as handled by the mixin
@@ -144,9 +137,9 @@ public class Commands {
                             //URL override, use from file
                             url = Util.GetURLFromConfig();
                         }
-                        Text prompt = Text.of("Reloading resource pack!");
-                        for (var player : context.getSource().getServer().getPlayerManager().getPlayerList()) {
-                            player.networkHandler.sendPacket(new ResourcePackSendS2CPacket(props.get().id(), url, props.get().hash(), true, Optional.of(prompt)));
+                        Component prompt = Component.nullToEmpty("Reloading resource pack!");
+                        for (var player : context.getSource().getServer().getPlayerList().getPlayers()) {
+                            player.connection.send(new ClientboundResourcePackPushPacket(props.get().id(), url, props.get().hash(), true, Optional.of(prompt)));
                         }
                 }
             }
@@ -158,12 +151,12 @@ public class Commands {
     public static class FetchHashReload {
         private static final String command = "fetchhash";
 
-        public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-            dispatcher.register(literal(command).requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS)).then(literal("reload").executes(Commands.FetchHashReload::execute)));
+        public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+            dispatcher.register(literal(command).requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_OWNER)).then(literal("reload").executes(Commands.FetchHashReload::execute)));
         }
 
-        public static int execute(CommandContext<ServerCommandSource> context) {
-            if (context.getSource().getServer().isDedicated()) {
+        public static int execute(CommandContext<CommandSourceStack> context) {
+            if (context.getSource().getServer().isDedicatedServer()) {
                 FetchHash.run(context,true);
             }
 
@@ -173,18 +166,18 @@ public class Commands {
 
     public static class FetchHash {
         private static final String command = "fetchhash";
-        public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
+        public static void register(CommandDispatcher<CommandSourceStack> dispatcher)
         {
-            dispatcher.register(literal(command).requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS)).executes(FetchHash::execute));
+            dispatcher.register(literal(command).requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_OWNER)).executes(FetchHash::execute));
         }
 
-        public static int run(CommandContext<ServerCommandSource> context, boolean reload)
+        public static int run(CommandContext<CommandSourceStack> context, boolean reload)
         {
             Thread fetchPackThread = new Thread(() -> {
                 try
                 {
                     //TODO check to see if URL override is set and resolve it instead of the URL of the
-                    MinecraftServer.ServerResourcePackProperties props = context.getSource().getServer().getResourcePackProperties().orElseThrow();
+                    MinecraftServer.ServerResourcePackInfo props = context.getSource().getServer().getServerResourcePack().orElseThrow();
                     String url = props.url();
                     if(Util.IsOverrideSet())
                     {
@@ -211,12 +204,12 @@ public class Commands {
                     FileWriter writer = new FileWriter(config);
                     writer.write(hexString.toString().toUpperCase());
                     writer.close();
-                    context.getSource().sendMessage(Text.literal("Updated config to: " + hexString.toString().toUpperCase()));
+                    context.getSource().sendSystemMessage(Component.literal("Updated config to: " + hexString.toString().toUpperCase()));
                     SHA1Runtime.LOGGER.info("Updated config with new hash: " + hexString.toString().toUpperCase());
 
                 } catch(NoSuchElementException e)
                 {
-                    context.getSource().sendMessage(Text.literal("No resource pack properties found. Make sure hash and url are set."));
+                    context.getSource().sendSystemMessage(Component.literal("No resource pack properties found. Make sure hash and url are set."));
                     SHA1Runtime.LOGGER.error("No resource pack properties found. Make sure hash and url are set.");
                 }
                 catch (IOException e)
@@ -238,9 +231,9 @@ public class Commands {
 
             return 1;
         }
-        public static int execute(CommandContext<ServerCommandSource> context)
+        public static int execute(CommandContext<CommandSourceStack> context)
         {
-            if(context.getSource().getServer().isDedicated())
+            if(context.getSource().getServer().isDedicatedServer())
             {
                 run(context, false);
             }
@@ -249,25 +242,25 @@ public class Commands {
     }
     public static class UpdateURL {
         private static final String command = "setpackurl";
-        public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+        public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
             dispatcher.register(literal(command)
-                    .requires(source -> source.getPermissions().hasPermission(DefaultPermissions.OWNERS))
+                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_OWNER))
                     .then(argument("url", StringArgumentType.greedyString())
                             .executes(UpdateURL::execute)
                     ));
         }
-        public static int execute(CommandContext<ServerCommandSource> context) {
-            if(context.getSource().getServer().isDedicated()) {
+        public static int execute(CommandContext<CommandSourceStack> context) {
+            if(context.getSource().getServer().isDedicatedServer()) {
                 String url = getString(context, "url");
                 File config = GetOrCreateUrlOverride();
                 try {
                     FileWriter writer = new FileWriter(config);
                     writer.write(url);
                     writer.close();
-                    context.getSource().sendMessage(Text.literal("Updated URL config to: " + url));
+                    context.getSource().sendSystemMessage(Component.literal("Updated URL config to: " + url));
                     SHA1Runtime.LOGGER.info("Updated config with new url: " + url);
                 } catch (IOException e) {
-                    context.getSource().sendMessage(Text.literal("Failed to update URL!"));
+                    context.getSource().sendSystemMessage(Component.literal("Failed to update URL!"));
                     SHA1Runtime.LOGGER.error("Failed to write new URL!");
                     SHA1Runtime.LOGGER.error(e.toString());
                 }
