@@ -33,7 +33,7 @@ If you use a third party resource pack host, you can use `/setpackurl` to set th
 
 `/updatehash HASH_EXAMPLE` : Will update the config to contain the supplied hash.
 
-`/reload` : Forces all connected clients to load the resource pack
+`/reload_pack` : Forces all connected clients to load the resource pack
 
 `/fetchhash` : Will hash the resourcepack currently at the URL from the server.properties (Or in override file) and save the hash to the config file.
 

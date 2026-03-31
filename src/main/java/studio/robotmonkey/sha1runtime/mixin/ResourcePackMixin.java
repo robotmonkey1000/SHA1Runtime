@@ -1,16 +1,9 @@
 package studio.robotmonkey.sha1runtime.mixin;
 
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.packet.s2c.common.ResourcePackSendS2CPacket;
-import net.minecraft.text.Text;
-import org.jetbrains.annotations.Nullable;
-import org.spongepowered.asm.mixin.Final;
+import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import studio.robotmonkey.sha1runtime.SHA1Runtime;
 import studio.robotmonkey.sha1runtime.Util.Util;
@@ -18,11 +11,9 @@ import studio.robotmonkey.sha1runtime.Util.Util;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Optional;
 import java.util.Scanner;
-import java.util.UUID;
 
-@Mixin(ResourcePackSendS2CPacket.class)
+@Mixin(ClientboundResourcePackPushPacket.class)
 public class ResourcePackMixin {
 
     @Inject(at= @At("HEAD"), method = "hash()Ljava/lang/String;", cancellable = true)
@@ -49,7 +40,7 @@ public class ResourcePackMixin {
         }
     }
 
-    @Inject(at= @At("HEAD"), method = "Lnet/minecraft/network/packet/s2c/common/ResourcePackSendS2CPacket;url()Ljava/lang/String;", cancellable = true)
+    @Inject(at= @At("HEAD"), method = "url()Ljava/lang/String;", cancellable = true)
     public void getURL(CallbackInfoReturnable ci) {
         if(Util.IsOverrideSet())
         {
